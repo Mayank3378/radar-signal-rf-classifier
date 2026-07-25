@@ -15,10 +15,16 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score, confusion_matrix, classification_report, roc_curve, auc
 )
+from sklearn.model_selection import cross_val_score
+from sklearn.tree import DecisionTreeClassifier
 import joblib
 
 # ---------- Load data ----------
-cols = [f"feat_{i+1}" for i in range(34)] + ["label"]
+# 17 radar pulses, each with a real + imaginary autocorrelation component
+cols = []
+for pulse in range(1, 18):
+    cols += [f"pulse{pulse:02d}_real", f"pulse{pulse:02d}_imag"]
+cols += ["label"]
 df = pd.read_csv("ionosphere.csv", header=None, names=cols)
 
 X = df.drop(columns=["label"])
@@ -49,6 +55,16 @@ print("\nClassification Report:\n", classification_report(y_test, y_pred, target
 
 cm = confusion_matrix(y_test, y_pred)
 print("Confusion Matrix:\n", cm)
+
+# ---------- Cross-validation (robustness check) ----------
+cv_scores = cross_val_score(model, X, y, cv=5)
+print(f"\n5-Fold CV Accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
+
+# ---------- Compare vs a single Decision Tree (shows *why* Random Forest) ----------
+single_tree = DecisionTreeClassifier(random_state=42)
+single_tree.fit(X_train, y_train)
+tree_acc = accuracy_score(y_test, single_tree.predict(X_test))
+print(f"Single Decision Tree accuracy: {tree_acc:.4f}  vs  Random Forest: {acc:.4f}")
 
 # ---------- Save confusion matrix plot ----------
 fig, ax = plt.subplots(figsize=(4, 4))
@@ -86,4 +102,10 @@ plt.savefig("roc_curve.png", dpi=150)
 joblib.dump(model, "rf_model.pkl")
 X.to_csv("feature_reference.csv", index=False)  # for sample defaults in app
 
-print("\nSaved: rf_model.pkl, confusion_matrix.png, feature_importance.png, roc_curve.png")
+with open("metrics.txt", "w") as f:
+    f.write(f"Random Forest test accuracy: {acc:.4f}\n")
+    f.write(f"5-Fold CV accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})\n")
+    f.write(f"Single Decision Tree test accuracy: {tree_acc:.4f}\n")
+    f.write(f"ROC-AUC: {roc_auc:.4f}\n")
+
+print("\nSaved: rf_model.pkl, metrics.txt, confusion_matrix.png, feature_importance.png, roc_curve.png")

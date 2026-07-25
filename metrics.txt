@@ -1,0 +1,4 @@
+Random Forest test accuracy: 0.9318
+5-Fold CV accuracy: 0.9317 (+/- 0.0417)
+Single Decision Tree test accuracy: 0.8750
+ROC-AUC: 0.9389
